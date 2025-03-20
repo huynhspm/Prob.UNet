@@ -153,57 +153,42 @@ def compute_metric(preds: List[torch.Tensor], gts: List[torch.Tensor], batch: in
         :return: 
         """
 
-        def ncc_pair(a, v, zero_norm=True):
+        def ncc_pair(a, v, zero_norm=True, eps=1e-8):
             a = a.flatten()
             v = v.flatten()
             if zero_norm:
-                a = (a - np.mean(a)) / (np.std(a) * len(a))
-                v = (v - np.mean(v)) / np.std(v)
+                a = (a - np.mean(a) + eps) / (np.std(a) * len(a) + eps)
+                v = (v - np.mean(v) + eps) / (np.std(v) + eps)
             else:
-                a = (a) / (np.std(a) * len(a))
-                v = (v) / np.std(v)
-            return np.correlate(a, v)
+                a = (a + eps) / (np.std(a) * len(a) + eps)
+                v = (v + eps) / (np.std(v) + eps)
+            return np.correlate(a, v).item()
 
         def pixel_wise_xent(m_samp, m_gt, eps=1e-8):
-
             log_samples = np.log(m_samp + eps)
-
             return -1.0*np.sum(m_gt*log_samples, axis=0)
 
-        sample_arr = sample_arr.squeeze(1).detach().cpu().numpy() # (n, 1, w, h)
-        gt_arr = gt_arr.squeeze(1).detach().cpu().numpy() # (m, 1, w, h)
-
+        sample_arr = sample_arr.unsqueeze(1).detach().cpu().numpy() # (n, 1, w, h)
+        gt_arr = gt_arr.unsqueeze(1).detach().cpu().numpy() # (m, 1, w, h)
         mean_seg = np.mean(sample_arr, axis=0)
-
         N = sample_arr.shape[0]
         M = gt_arr.shape[0]
-
         sX = sample_arr.shape[2]
         sY = sample_arr.shape[3]
-
         E_ss_arr = np.zeros((N,sX,sY))
         for i in range(N):
             E_ss_arr[i,...] = pixel_wise_xent(sample_arr[i,...], mean_seg)
-            # print('pixel wise xent')
-            # plt.imshow( E_ss_arr[i,...])
-            # plt.show()
-
             E_ss = np.mean(E_ss_arr, axis=0)
-
             E_sy_arr = np.zeros((M,N, sX, sY))
             for j in range(M):
                 for i in range(N):
                     E_sy_arr[j,i, ...] = pixel_wise_xent(sample_arr[i,...], gt_arr[j,...])
-
             E_sy = np.mean(E_sy_arr, axis=1)
-
             ncc_list = []
             for j in range(M):
-
                 ncc_list.append(ncc_pair(E_ss, E_sy[j,...]))
-
         return (1/M)*sum(ncc_list)
-    
+
     ged, ncc, max_dice, dice, iou = 0, 0, 0, 0, 0
 
     preds = torch.stack(preds, dim=1) # b, n, w, h

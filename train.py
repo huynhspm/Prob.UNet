@@ -92,6 +92,7 @@ if __name__== "__main__":
     parser.add_argument("--batch_size", default=32, type=int, help="Batch size")
     parser.add_argument("--num_workers", default=4, type=int, help ="Number of workers to read data")
     parser.add_argument("--epoch", default=100, type=int, help ="Number of epoch to train")
+    parser.add_argument("--eval_frequency", default=10, type=int, help ="Frequency (in number of epochs) for evaluation")
     parser.add_argument("--log_dir", default="log", type=str, help="Log folder")
     args = parser.parse_args()
     
